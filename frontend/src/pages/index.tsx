@@ -449,7 +449,7 @@ const Home: React.FC = () => {
                 <div>
                   <ul className="text-white list-disc list-inside">
                     {scores.length > 0 && (
-                      <div className="space-y-4 backdrop-blur-lg p-6 border border-white/20 rounded-xl">
+                      <div className="space-y-4 bg-black backdrop-blur-lg p-6 border border-white/20 rounded-xl">
                         <h3 className="font-semibold text-white text-lg">
                           Scores
                         </h3>
