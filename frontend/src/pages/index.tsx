@@ -92,7 +92,7 @@ const Home: React.FC = () => {
   const [roundAnswer, setRoundAnswer] = useState<string>("");
 
   // Loaders
-  const [isSocketLoading, setIsSocketLoading] = useState(true);
+  const [, setIsSocketLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
   // const [isStarting, setIsStarting] = useState(false);
