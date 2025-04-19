@@ -220,10 +220,16 @@ const Home: React.FC = () => {
   };
 
   const handleStartGame = () => {
-    if (!socketRef.current) return;
+    const result = gameSchema.safeParse({ question, answer });
+    if (!result.success) {
+      setMasterErrors(result.error.flatten().fieldErrors);
+      return;
+    }
+    setMasterErrors({});
 
+    setIsStarting(true);
     // socketRef.current.emit("set_question", { roomId, question, answer });
-    socketRef.current.emit(
+    socketRef.current?.emit(
       "start_game",
       { roomId },
       (res: { error?: string; success?: boolean }) => {
