@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
+import type { Socket } from "socket.io-client";
 
 interface Player {
   id: string;
@@ -58,7 +59,7 @@ const Home: React.FC = () => {
   const [scores, setScores] = useState<{ name: string; score: number }[]>([]);
   const [chat, setChat] = useState<ChatMessage[]>([]);
   const chatRef = useRef<HTMLDivElement>(null);
-  const socketRef = useRef<any>(null);
+  const socketRef = useRef<ReturnType<typeof io> | null>(null);
 
   // Loaders
   const [isSocketLoading, setIsSocketLoading] = useState(true);
@@ -138,44 +139,48 @@ const Home: React.FC = () => {
   // Handlers with loaders
   const handleCreateRoom = () => {
     setIsCreating(true);
-    socketRef.current.emit(
-      "create_room",
-      { nickname },
-      ({ roomId }: { roomId: string }) => {
-        setIsCreating(false);
-        setRoomId(roomId);
-        setStep("master");
-      }
-    );
+    if (socketRef.current) {
+      socketRef.current.emit(
+        "create_room",
+        { nickname },
+        ({ roomId }: { roomId: string }) => {
+          setIsCreating(false);
+          setRoomId(roomId);
+          setStep("master");
+        }
+      );
+    }
   };
 
   const handleJoinRoom = () => {
     setIsJoining(true);
-    socketRef.current.emit(
-      "join_room",
-      { roomId, nickname },
-      (res: { error?: string; success?: boolean }) => {
-        setIsJoining(false);
-        if (res.error) {
-          toast("Error Joining Room", {
-            description: res.error,
-            action: {
-              label: "Try again",
-              onClick: () => {
-                handleJoinRoom();
+    if (socketRef.current) {
+      socketRef.current.emit(
+        "join_room",
+        { roomId, nickname },
+        (res: { error?: string; success?: boolean }) => {
+          setIsJoining(false);
+          if (res.error) {
+            toast("Error Joining Room", {
+              description: res.error,
+              action: {
+                label: "Try again",
+                onClick: () => {
+                  handleJoinRoom();
+                },
               },
-            },
-          });
-          return;
-        } else setStep("player");
-      }
-    );
+            });
+            return;
+          } else setStep("player");
+        }
+      );
+    }
   };
 
   const handleStartGame = () => {
     setIsStarting(true);
 
-    socketRef.current.emit(
+    socketRef.current?.emit(
       "start_game",
       { roomId },
       (res: { error?: string; success?: boolean }) => {
@@ -194,7 +199,7 @@ const Home: React.FC = () => {
         }
 
         // Only emit set_question if start_game was successful
-        socketRef.current.emit("set_question", { roomId, question, answer });
+        socketRef.current?.emit("set_question", { roomId, question, answer });
 
         setIsStarting(false);
       }
@@ -203,7 +208,7 @@ const Home: React.FC = () => {
 
   const handleSubmitGuess = () => {
     setIsGuessing(true);
-    socketRef.current.emit(
+    socketRef.current?.emit(
       "submit_guess",
       { roomId, guess },
       (res: GuessResponse) => {
