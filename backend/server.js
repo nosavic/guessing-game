@@ -142,7 +142,7 @@ io.on("connection", (socket) => {
           text: `${left.nickname} left the room.`,
         });
         if (room.players.length === 0) {
-          delete rooms[roomId];
+          // delete rooms[roomId];
         } else {
           io.to(roomId).emit("update_players", room.players);
           io.to(roomId).emit("chat_update", room.chat);
