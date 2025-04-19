@@ -3,140 +3,98 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { toast } from "sonner";
-// import { z } from "zod";
-
-// Add these schemas at the top of the component
-// const createSchema = z.object({
-//   nickname: z.string().min(1, "Nickname is required"),
-// });
-
-// const joinSchema = z.object({
-//   nickname: z.string().min(1, "Nickname is required"),
-//   roomId: z
-//     .string()
-//     .length(6, "Room ID must be 6 characters")
-//     .regex(/^[A-Z0-9]+$/, "Room ID must be uppercase letters and numbers"),
-// });
-
-// const gameSchema = z.object({
-//   question: z.string().min(1, "Question is required"),
-//   answer: z.string().min(1, "Answer is required"),
-// });
-
-// interface HomeState {
-//   createErrors: z.inferFlattenedErrors<typeof createSchema>["fieldErrors"];
-//   joinErrors: z.inferFlattenedErrors<typeof joinSchema>["fieldErrors"];
-//   masterErrors: z.inferFlattenedErrors<typeof gameSchema>["fieldErrors"];
-// }
 
 interface Player {
   id: string;
-  nicknsame: string;
+  nickname: string;
   score: number;
   isMaster: boolean;
 }
+
 interface ChatMessage {
   system?: boolean;
   you?: boolean;
   user?: string;
   text: string;
 }
+
 interface GameWonData {
   winner: string;
   answer: string;
   scores: { name: string; score: number }[];
 }
+
 interface GameStartedData {
   question: string;
-  answer: string;
 }
+
 interface GameEndedData {
   answer: string;
 }
+
 interface GuessResponse {
   correct?: boolean;
   attemptsLeft: number;
 }
+
+// const socket: typeof Socket = io("http://localhost:4000"); // Remove direct import, use in useEffect
+
 type Step = "lobby" | "master" | "player" | "game";
 
-// Reusable spinner
-const Spinner: React.FC<{ size?: number }> = ({ size = 6 }) => (
-  <div
-    className={`
-    w-${size} h-${size} border-4 border-t-transparent border-white
-    rounded-full animate-spin
-  `}
-  />
-);
-
-const Home: React.FC = () => {
-  // State
+const Home = () => {
   const [step, setStep] = useState<Step>("lobby");
-  const [nickname, setNickname] = useState("");
-  const [roomId, setRoomId] = useState("");
+  const [nickname, setNickname] = useState<string>("");
+  const [roomId, setRoomId] = useState<string>("");
   const [players, setPlayers] = useState<Player[]>([]);
-  const [isMaster, setIsMaster] = useState(false);
-  const [question, setQuestion] = useState("");
-  const [answer, setAnswer] = useState("");
-  const [guess, setGuess] = useState("");
-  const [attemptsLeft, setAttemptsLeft] = useState(3);
+  const [isMaster, setIsMaster] = useState<boolean>(false);
+  const [question, setQuestion] = useState<string>("");
+  const [answer, setAnswer] = useState<string>("");
+  const [guess, setGuess] = useState<string>("");
+  const [attemptsLeft, setAttemptsLeft] = useState<number>(3);
   const [scores, setScores] = useState<{ name: string; score: number }[]>([]);
   const [chat, setChat] = useState<ChatMessage[]>([]);
   const chatRef = useRef<HTMLDivElement>(null);
-  const socketRef = useRef<ReturnType<typeof io> | null>(null);
+  const socketRef = useRef<any>(null); // Use useRef for socket
 
-  // Loaders
+  // loading states
   const [isSocketLoading, setIsSocketLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [isGuessing, setIsGuessing] = useState(false);
 
-  // Validate input
-  // const [createErrors, setCreateErrors] = useState<HomeState["createErrors"]>(
-  //   {}
-  // );
-  // const [joinErrors, setJoinErrors] = useState<HomeState["joinErrors"]>({});
-  // const [masterErrors] = useState<HomeState["masterErrors"]>({});
+  // loading states
 
-  // Initialize socket.io
+  // Initialize socket.io connection
   useEffect(() => {
+    // Dynamically import socket.io-client
     import("socket.io-client")
-      .then(({ default: io }) => {
-        const backendURL = process.env.NEXT_PUBLIC_API_BASE_URL!;
-        const socket = io(backendURL, { transports: ["websocket"] });
-        socketRef.current = socket;
+      .then((module) => {
+        const io = module.default;
+        socketRef.current = io("http://localhost:4000"); // Initialize socket
 
-        // Connection established
-        socket.on("connect", () => setIsSocketLoading(false));
-
-        // Player list & master flag
-        socket.on("update_players", (list: Player[]) => {
+        // Socket event handlers (moved inside useEffect)
+        socketRef.current.on("update_players", (list: Player[]) => {
           setPlayers(list);
-          const me = list.find((p) => p.id === socket.id);
+          const me = list.find((p) => p.id === socketRef.current.id);
           setIsMaster(!!me?.isMaster);
         });
 
-        // Chat updates
-        socket.on("chat_update", (msgs: ChatMessage[]) => {
+        socketRef.current.on("chat_update", (msgs: ChatMessage[]) => {
           setChat(msgs);
         });
 
-        // Game started
         socketRef.current.on(
           "game_started",
-          ({ question, answer }: GameStartedData) => {
+          ({ question }: GameStartedData) => {
             setQuestion(question);
-            setAnswer(answer); // Store answer locally if needed
             setAttemptsLeft(3);
             setGuess("");
             setStep("game");
           }
         );
 
-        // Player won
-        socket.on("game_won", (data: GameWonData) => {
+        socketRef.current.on("game_won", (data: GameWonData) => {
           setScores(data.scores);
           setChat((c) => [
             ...c,
@@ -148,44 +106,41 @@ const Home: React.FC = () => {
           setStep("lobby");
         });
 
-        // Time expired
-        socket.on("game_ended", ({ answer }: GameEndedData) => {
+        socketRef.current.on("game_ended", ({ answer }: GameEndedData) => {
           setChat((c) => [
             ...c,
-            { system: true, text: `Time's up! Answer was: ${answer}` },
+            { system: true, text: `Time up! Answer was: ${answer}` },
           ]);
           setStep("lobby");
         });
 
-        // Cleanup on unmount
+        // Cleanup function to disconnect
         return () => {
-          socket.disconnect();
+          if (socketRef.current) {
+            socketRef.current.disconnect();
+          }
         };
       })
-      .catch(console.error);
-  }, []);
+      .catch((error) => {
+        console.error("Failed to load socket.io-client:", error);
+        // Handle error (e.g., show a message to the user)
+      });
+  }, []); // Empty dependency array to ensure this runs only once on mount
 
-  // Auto‑scroll chat to bottom :contentReference[oaicite:14]{index=14}
+  // Scroll chat on update
   useEffect(() => {
     if (chatRef.current) {
       chatRef.current.scrollTop = chatRef.current.scrollHeight;
     }
   }, [chat]);
 
-  // Handlers with loaders
+  // Handlers
   const handleCreateRoom = () => {
-    // const result = createSchema.safeParse({ nickname });
-    // if (!result.success) {
-    // setCreateErrors(result.error.flatten().fieldErrors);
-    //   return;
-    // }
-    // setCreateErrors({});
-    setIsCreating(true);
-    socketRef.current?.emit(
+    if (!socketRef.current) return;
+    socketRef.current.emit(
       "create_room",
       { nickname },
       ({ roomId }: { roomId: string }) => {
-        setIsCreating(false);
         setRoomId(roomId);
         setStep("master");
       }
@@ -193,25 +148,12 @@ const Home: React.FC = () => {
   };
 
   const handleJoinRoom = () => {
-    // const result = joinSchema.safeParse({ nickname, roomId });
-    // if (!result.success) {
-    //   setJoinErrors(result.error.flatten().fieldErrors);
-    //   return;
-    // }
-    // setJoinErrors({});
-    setIsJoining(true);
-    socketRef.current?.emit(
+    if (!socketRef.current) return;
+    socketRef.current.emit(
       "join_room",
       { roomId, nickname },
       (res: { error?: string; success?: boolean }) => {
-        setIsJoining(false);
-        if (res.error) {
-          toast("Error Joining Room", {
-            description: res.error,
-            action: { label: "Try again", onClick: handleJoinRoom },
-          });
-          return;
-        }
+        if (res.error) return alert(res.error);
         setStep("player");
       }
     );
@@ -224,26 +166,17 @@ const Home: React.FC = () => {
       "start_game",
       { roomId },
       (res: { error?: string; success?: boolean }) => {
-        toast("Error Starting Game", {
-          description: res.error,
-          action: {
-            label: "Try again",
-            onClick: () => {
-              handleStartGame();
-            },
-          },
-        });
+        if (res.error) alert(res.error);
       }
     );
   };
 
   const handleSubmitGuess = () => {
-    setIsGuessing(true);
-    socketRef.current?.emit(
+    if (!socketRef.current) return;
+    socketRef.current.emit(
       "submit_guess",
       { roomId, guess },
       (res: GuessResponse) => {
-        setIsGuessing(false);
         if (res.correct === false) {
           setAttemptsLeft(res.attemptsLeft);
           setChat((c) => [
@@ -256,87 +189,74 @@ const Home: React.FC = () => {
     setGuess("");
   };
 
-  // Full‑screen loader on WS init :contentReference[oaicite:15]{index=15}
-  if (isSocketLoading) {
-    return (
-      <div className="flex justify-center items-center bg-gray-900 min-h-screen">
-        <Spinner size={12} />
-      </div>
-    );
-  }
-
-  // Lobby UI
+  // Render Lobby
   if (step === "lobby") {
     return (
       <div className="flex flex-col justify-center items-center bg-gradient-to-br from-gray-900 to-gray-700 p-4 min-h-screen">
-        <div className="space-y-6 bg-white/10 backdrop-blur-lg p-6 border border-white/20 rounded-xl w-full max-w-md">
+        <div className="space-y-6 bg-white/10 shadow-lg backdrop-blur-md p-6 border border-white/10 rounded-xl w-full max-w-md">
           <h1 className="font-bold text-white text-3xl text-center">
             Guessing Game
           </h1>
           <Input
+            type="text"
             value={nickname}
-            onChange={(e) => setNickname(e.target.value)}
+            onChange={(e: ChangeEvent<HTMLInputElement>) =>
+              setNickname(e.target.value)
+            }
             placeholder="Your nickname"
-            className="bg-black/20 w-full text-white placeholder-gray-400"
+            className="bg-black/20 border-gray-700 text-white placeholder:text-gray-400"
           />
-          {/* {createErrors.nickname && (
-            <p className="mt-1 text-red-400 text-sm">
-              {createErrors.nickname[0]}
-            </p>
-          )} */}
           <Button
             onClick={handleCreateRoom}
-            disabled={!nickname || isCreating}
+            disabled={!nickname}
             className="bg-blue-500/90 hover:bg-blue-500 px-4 py-2 rounded-md w-full font-semibold text-white transition-colors duration-300"
           >
-            {isCreating ? <Spinner /> : "Create Room"}
+            Create Room
           </Button>
-          <div className="border-white/20 border-t"></div>
+          <div className="my-4 border-gray-700 border-t" />
           <Input
+            type="text"
             value={roomId}
-            onChange={(e) => setRoomId(e.target.value.toUpperCase())}
+            onChange={(e: ChangeEvent<HTMLInputElement>) =>
+              setRoomId(e.target.value.toUpperCase())
+            }
             placeholder="Room ID"
             maxLength={6}
-            className="bg-black/20 w-full text-white placeholder-gray-400"
+            className="bg-black/20 border-gray-700 text-white placeholder:text-gray-400"
           />
-          {/* {joinErrors.roomId && (
-            <p className="mt-1 text-red-400 text-sm">{joinErrors.roomId[0]}</p>
-          )} */}
           <Button
             onClick={handleJoinRoom}
-            disabled={!nickname || !roomId || isJoining}
+            disabled={!nickname || !roomId}
             className="bg-green-500/90 hover:bg-green-500 px-4 py-2 rounded-md w-full font-semibold text-white transition-colors duration-300"
           >
-            {isJoining ? <Spinner /> : "Join Room"}
+            Join Room
           </Button>
         </div>
       </div>
     );
   }
 
-  // In‑Room & Game UI
+  // In‑Room / Game UI
   return (
-    <div className="bg-gradient-to-br from-gray-900 to-gray-800 p-4 min-h-screen">
-      <div className="space-y-6 mx-auto max-w-[30rem]">
+    <div className="bg-gradient-to-br from-gray-900 to-gray-800 p-4 sm:p-6 lg:p-8 min-h-screen">
+      <div className="space-y-6 mx-auto max-w-4xl">
         <h2 className="font-semibold text-white text-2xl text-center">
-          Room: <span className="text-blue-400">{roomId}</span> — Players:{" "}
+          Room: <span className="text-blue-400">{roomId}</span> &mdash; Players:{" "}
           <span className="text-green-400">{players.length}</span>
         </h2>
 
         {/* Chat Window */}
-        <div className="bg-white/5 backdrop-blur-lg p-4 border border-white/20 rounded-xl">
-          <ScrollArea className="pr-4 h-72">
-            <div className="space-y-2" ref={chatRef}>
+        <div className="bg-white/5 shadow-lg backdrop-blur-md border border-white/10 rounded-xl">
+          <ScrollArea className="pr-4 rounded-md w-full h-72">
+            <div className="space-y-2 p-4" ref={chatRef}>
               {chat.map((m, i) => (
                 <div
                   key={i}
                   className={cn(
                     "p-2 rounded-lg",
-                    m.system
-                      ? "bg-gray-700/50 text-gray-300"
-                      : m.you
-                      ? "bg-blue-500/20 text-blue-300"
-                      : "bg-gray-800/50 text-white"
+                    m.system && "bg-gray-700/50 text-gray-300",
+                    m.you && "bg-blue-500/20 text-blue-300",
+                    !m.system && !m.you && "bg-gray-800/50 text-white"
                   )}
                 >
                   {m.system
@@ -352,70 +272,66 @@ const Home: React.FC = () => {
 
         {/* Master Controls */}
         {isMaster && step !== "game" && (
-          <div className="space-y-4 bg-white/10 backdrop-blur-lg p-6 border border-white/20 rounded-xl">
+          <div className="space-y-4 bg-white/10 shadow-lg backdrop-blur-md p-6 border border-white/10 rounded-xl">
             <h3 className="font-semibold text-white text-lg">
               You’re the Game Master
             </h3>
             <Input
+              type="text"
               value={question}
-              onChange={(e) => setQuestion(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                setQuestion(e.target.value)
+              }
               placeholder="Question"
-              className="bg-black/20 w-full text-white placeholder-gray-400"
+              className="bg-black/20 border-gray-700 text-white placeholder:text-gray-400"
             />
-            {/* {masterErrors.question && (
-              <p className="mt-1 text-red-400 text-sm">
-                {masterErrors.question[0]}
-              </p>
-            )} */}
-
             <Input
+              type="text"
               value={answer}
-              onChange={(e) => setAnswer(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                setAnswer(e.target.value)
+              }
               placeholder="Answer"
-              className="bg-black/20 w-full text-white placeholder-gray-400"
+              className="bg-black/20 border-gray-700 text-white placeholder:text-gray-400"
             />
-            {/* {masterErrors.answer && (
-              <p className="mt-1 text-red-400 text-sm">
-                {masterErrors.answer[0]}
-              </p>
-            )} */}
             <Button
               onClick={handleStartGame}
-              disabled={!question || !answer || isStarting}
+              disabled={!question || !answer}
               className="bg-purple-500/90 hover:bg-purple-500 px-4 py-2 rounded-md w-full font-semibold text-white transition-colors duration-300"
             >
-              {isStarting ? <Spinner /> : "Start Game"}
+              Start Game
             </Button>
           </div>
         )}
 
         {/* Waiting for Master */}
         {!isMaster && step === "player" && (
-          <div className="bg-white/5 p-4 border border-white/20 rounded-xl text-white text-center">
-            Waiting for the Game Master to start…
-          </div>
+          <p className="bg-white/5 shadow-lg backdrop-blur-md p-4 border border-white/10 rounded-xl text-white text-center">
+            Waiting for the game master to start the game…
+          </p>
         )}
 
         {/* Gameplay */}
         {step === "game" && (
-          <div className="space-y-4 bg-white/10 backdrop-blur-lg p-6 border border-white/20 rounded-xl">
+          <div className="space-y-4 bg-white/10 shadow-lg backdrop-blur-md p-6 border border-white/10 rounded-xl">
             <h3 className="font-semibold text-yellow-300 text-xl">
               Question: {question}
             </h3>
             <Input
+              type="text"
               value={guess}
               onChange={(e: ChangeEvent<HTMLInputElement>) =>
                 setGuess(e.target.value)
               }
               placeholder="Your guess"
-              className="bg-black/20 w-full text-white placeholder-gray-400"
+              className="bg-black/20 border-gray-700 text-white placeholder:text-gray-400"
             />
             <Button
               onClick={handleSubmitGuess}
-              disabled={!guess || isGuessing}
-              className="w-full"
+              disabled={!guess}
+              className="bg-orange-500/90 hover:bg-orange-500 px-4 py-2 rounded-md w-full font-semibold text-white transition-colors duration-300"
             >
-              {isGuessing ? <Spinner /> : "Submit Guess"}
+              Guess
             </Button>
             <p className="text-white">
               Attempts left:{" "}
@@ -426,7 +342,7 @@ const Home: React.FC = () => {
 
         {/* Scoreboard */}
         {scores.length > 0 && (
-          <div className="space-y-4 bg-white/10 backdrop-blur-lg p-6 border border-white/20 rounded-xl">
+          <div className="space-y-4 bg-white/10 shadow-lg backdrop-blur-md p-6 border border-white/10 rounded-xl">
             <h3 className="font-semibold text-white text-lg">Scores</h3>
             <ul className="space-y-2">
               {scores.map((s) => (
@@ -444,3 +360,9 @@ const Home: React.FC = () => {
 };
 
 export default Home;
+
+const Spinner: React.FC<{ size?: number }> = ({ size = 6 }) => (
+  <div
+    className={`w-${size} h-${size} border-4 border-t-transparent border-white rounded-full animate-spin`}
+  />
+);
