@@ -86,6 +86,11 @@ const Home: React.FC = () => {
   const chatRef = useRef<HTMLDivElement>(null);
   const socketRef = useRef<ReturnType<typeof io> | null>(null);
 
+  // after your existing game state…
+  const [gameOver, setGameOver] = useState<boolean>(false);
+  const [winnerName, setWinnerName] = useState<string>("");
+  const [roundAnswer, setRoundAnswer] = useState<string>("");
+
   // Loaders
   const [isSocketLoading, setIsSocketLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
@@ -138,6 +143,8 @@ const Home: React.FC = () => {
         // Player won
         socket.on("game_won", (data: GameWonData) => {
           setScores(data.scores);
+          setWinnerName(data.winner);
+          setRoundAnswer(data.answer);
           setChat((c) => [
             ...c,
             {
@@ -145,16 +152,17 @@ const Home: React.FC = () => {
               text: `${data.winner} won! Answer: ${data.answer}`,
             },
           ]);
-          setStep("lobby");
+          setGameOver(true);
         });
 
         // Time expired
         socket.on("game_ended", ({ answer }: GameEndedData) => {
+          setRoundAnswer(answer);
           setChat((c) => [
             ...c,
             { system: true, text: `Time's up! Answer was: ${answer}` },
           ]);
-          setStep("lobby");
+          setGameOver(true);
         });
 
         // Cleanup on unmount
@@ -402,25 +410,56 @@ const Home: React.FC = () => {
             <h3 className="font-semibold text-yellow-300 text-xl">
               Question: {question}
             </h3>
-            <Input
-              value={guess}
-              onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                setGuess(e.target.value)
-              }
-              placeholder="Your guess"
-              className="bg-black/20 w-full text-white placeholder-gray-400"
-            />
-            <Button
-              onClick={handleSubmitGuess}
-              disabled={!guess || isGuessing}
-              className="w-full"
-            >
-              {isGuessing ? <Spinner /> : "Submit Guess"}
-            </Button>
-            <p className="text-white">
-              Attempts left:{" "}
-              <span className="text-red-400">{attemptsLeft}</span>
-            </p>
+
+            {!gameOver ? (
+              <div>
+                <Input
+                  value={guess}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                    setGuess(e.target.value)
+                  }
+                  placeholder="Your guess"
+                  className="bg-black/20 w-full text-white placeholder-gray-400"
+                />
+                <Button
+                  onClick={handleSubmitGuess}
+                  disabled={!guess || isGuessing}
+                  className="w-full"
+                >
+                  {isGuessing ? <Spinner /> : "Submit Guess"}
+                </Button>
+                <p className="text-white">
+                  Attempts left:{" "}
+                  <span className="text-red-400">{attemptsLeft}</span>
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* ← NEW: result panel */}
+                <h4 className="text-white text-lg">
+                  {winnerName
+                    ? `${winnerName} guessed correctly!`
+                    : `Time's up! Answer: ${roundAnswer}`}
+                </h4>
+                <div>
+                  <h5 className="font-medium text-white">Scores:</h5>
+                  <ul className="text-white list-disc list-inside">
+                    {scores.map((s) => (
+                      <li key={s.name}>{`${s.name}: ${s.score}`}</li>
+                    ))}
+                  </ul>
+                </div>
+                <Button
+                  onClick={() => {
+                    setStep("lobby");
+                    setGameOver(false);
+                  }}
+                  className="mt-4 w-full"
+                >
+                  Back to Lobby
+                </Button>
+              </>
+            )}
           </div>
         )}
 
