@@ -265,13 +265,13 @@ const Home: React.FC = () => {
   };
 
   // Full‑screen loader on WS init :contentReference[oaicite:15]{index=15}
-  if (isSocketLoading) {
-    return (
-      <div className="flex justify-center items-center bg-gray-900 min-h-screen">
-        <Spinner size={12} />
-      </div>
-    );
-  }
+  // if (isSocketLoading) {
+  //   return (
+  //     <div className="flex justify-center items-center bg-gray-900 min-h-screen">
+  //       <Spinner size={12} />
+  //     </div>
+  //   );
+  // }
 
   // Lobby UI
   if (step === "lobby") {
