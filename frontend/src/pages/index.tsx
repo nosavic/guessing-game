@@ -92,7 +92,7 @@ const Home: React.FC = () => {
   const [roundAnswer, setRoundAnswer] = useState<string>("");
 
   // Loaders
-  const [, setIsSocketLoading] = useState(true);
+  const [isSocketLoading, setIsSocketLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
   // const [isStarting, setIsStarting] = useState(false);
@@ -129,16 +129,18 @@ const Home: React.FC = () => {
         });
 
         // Game started
-        socketRef.current.on(
-          "game_started",
-          ({ question, answer }: GameStartedData) => {
-            setQuestion(question);
-            setAnswer(answer); // Store answer locally if needed
-            setAttemptsLeft(3);
-            setGuess("");
-            setStep("game");
-          }
-        );
+        if (socketRef.current) {
+          socketRef.current.on(
+            "game_started",
+            ({ question, answer }: GameStartedData) => {
+              setQuestion(question);
+              setAnswer(answer); // Store answer locally if needed
+              setAttemptsLeft(3);
+              setGuess("");
+              setStep("game");
+            }
+          );
+        }
 
         // Player won
         socket.on("game_won", (data: GameWonData) => {
@@ -265,13 +267,13 @@ const Home: React.FC = () => {
   };
 
   // Full‑screen loader on WS init :contentReference[oaicite:15]{index=15}
-  // if (isSocketLoading) {
-  //   return (
-  //     <div className="flex justify-center items-center bg-gray-900 min-h-screen">
-  //       <Spinner size={12} />
-  //     </div>
-  //   );
-  // }
+  if (isSocketLoading) {
+    return (
+      <div className="flex justify-center items-center bg-gray-900 min-h-screen">
+        <Spinner size={12} />
+      </div>
+    );
+  }
 
   // Lobby UI
   if (step === "lobby") {
@@ -294,7 +296,7 @@ const Home: React.FC = () => {
           )} */}
           <Button
             onClick={handleCreateRoom}
-            disabled={!nickname || isCreating}
+            disabled={!nickname || isCreating || isSocketLoading}
             className="bg-blue-500/90 hover:bg-blue-500 px-4 py-2 rounded-md w-full font-semibold text-white transition-colors duration-300"
           >
             {isCreating ? <Spinner /> : "Create Room"}
@@ -312,11 +314,14 @@ const Home: React.FC = () => {
           )} */}
           <Button
             onClick={handleJoinRoom}
-            disabled={!nickname || !roomId || isJoining}
+            disabled={isSocketLoading || !nickname || !roomId || isJoining}
             className="bg-green-500/90 hover:bg-green-500 px-4 py-2 rounded-md w-full font-semibold text-white transition-colors duration-300"
           >
             {isJoining ? <Spinner /> : "Join Room"}
           </Button>
+        </div>
+        <div className="bottom-0 left-0 absolute flex justify-center opacity-50 w-[100%] font-bold text-[20px] text-white">
+          by Nosakhare Victory Efosa
         </div>
       </div>
     );
@@ -442,11 +447,22 @@ const Home: React.FC = () => {
                     : `Time's up! Answer: ${roundAnswer}`}
                 </h4>
                 <div>
-                  <h5 className="font-medium text-white">Scores:</h5>
                   <ul className="text-white list-disc list-inside">
-                    {scores.map((s) => (
-                      <li key={s.name}>{`${s.name}: ${s.score}`}</li>
-                    ))}
+                    {scores.length > 0 && (
+                      <div className="space-y-4 bg-white/10 backdrop-blur-lg p-6 border border-white/20 rounded-xl">
+                        <h3 className="font-semibold text-white text-lg">
+                          Scores
+                        </h3>
+                        <ul className="space-y-2">
+                          {scores.map((s) => (
+                            <li key={s.name} className="text-white">
+                              <span className="font-medium">{s.name}:</span>{" "}
+                              <span className="text-blue-300">{s.score}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </ul>
                 </div>
                 <Button
@@ -460,21 +476,6 @@ const Home: React.FC = () => {
                 </Button>
               </>
             )}
-          </div>
-        )}
-
-        {/* Scoreboard */}
-        {scores.length > 0 && (
-          <div className="space-y-4 bg-white/10 backdrop-blur-lg p-6 border border-white/20 rounded-xl">
-            <h3 className="font-semibold text-white text-lg">Scores</h3>
-            <ul className="space-y-2">
-              {scores.map((s) => (
-                <li key={s.name} className="text-white">
-                  <span className="font-medium">{s.name}:</span>{" "}
-                  <span className="text-blue-300">{s.score}</span>
-                </li>
-              ))}
-            </ul>
           </div>
         )}
       </div>

@@ -65,8 +65,8 @@ io.on("connection", (socket) => {
   socket.on("start_game", ({ roomId }, cb) => {
     const room = rooms[roomId];
     if (!room) return cb({ error: "Room not found." });
-    if (room.players.length < 3)
-      return cb({ error: "Need at least 3 players." });
+    if (room.players.length < 2)
+      return cb({ error: "Need at least 2 players." });
     const me = room.players.find((p) => p.id === socket.id);
     if (!me || !me.isMaster) return cb({ error: "Not authorized." });
 
