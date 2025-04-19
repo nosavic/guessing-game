@@ -4,31 +4,31 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import { z } from "zod";
+// import { z } from "zod";
 
 // Add these schemas at the top of the component
-const createSchema = z.object({
-  nickname: z.string().min(1, "Nickname is required"),
-});
+// const createSchema = z.object({
+//   nickname: z.string().min(1, "Nickname is required"),
+// });
 
-const joinSchema = z.object({
-  nickname: z.string().min(1, "Nickname is required"),
-  roomId: z
-    .string()
-    .length(6, "Room ID must be 6 characters")
-    .regex(/^[A-Z0-9]+$/, "Room ID must be uppercase letters and numbers"),
-});
+// const joinSchema = z.object({
+//   nickname: z.string().min(1, "Nickname is required"),
+//   roomId: z
+//     .string()
+//     .length(6, "Room ID must be 6 characters")
+//     .regex(/^[A-Z0-9]+$/, "Room ID must be uppercase letters and numbers"),
+// });
 
-const gameSchema = z.object({
-  question: z.string().min(1, "Question is required"),
-  answer: z.string().min(1, "Answer is required"),
-});
+// const gameSchema = z.object({
+//   question: z.string().min(1, "Question is required"),
+//   answer: z.string().min(1, "Answer is required"),
+// });
 
-interface HomeState {
-  createErrors: z.inferFlattenedErrors<typeof createSchema>["fieldErrors"];
-  joinErrors: z.inferFlattenedErrors<typeof joinSchema>["fieldErrors"];
-  masterErrors: z.inferFlattenedErrors<typeof gameSchema>["fieldErrors"];
-}
+// interface HomeState {
+//   createErrors: z.inferFlattenedErrors<typeof createSchema>["fieldErrors"];
+//   joinErrors: z.inferFlattenedErrors<typeof joinSchema>["fieldErrors"];
+//   masterErrors: z.inferFlattenedErrors<typeof gameSchema>["fieldErrors"];
+// }
 
 interface Player {
   id: string;
@@ -94,11 +94,11 @@ const Home: React.FC = () => {
   const [isGuessing, setIsGuessing] = useState(false);
 
   // Validate input
-  const [createErrors, setCreateErrors] = useState<HomeState["createErrors"]>(
-    {}
-  );
-  const [joinErrors, setJoinErrors] = useState<HomeState["joinErrors"]>({});
-  const [masterErrors] = useState<HomeState["masterErrors"]>({});
+  // const [createErrors, setCreateErrors] = useState<HomeState["createErrors"]>(
+  //   {}
+  // );
+  // const [joinErrors, setJoinErrors] = useState<HomeState["joinErrors"]>({});
+  // const [masterErrors] = useState<HomeState["masterErrors"]>({});
 
   // Initialize socket.io
   useEffect(() => {
@@ -174,12 +174,12 @@ const Home: React.FC = () => {
 
   // Handlers with loaders
   const handleCreateRoom = () => {
-    const result = createSchema.safeParse({ nickname });
-    if (!result.success) {
-      setCreateErrors(result.error.flatten().fieldErrors);
-      return;
-    }
-    setCreateErrors({});
+    // const result = createSchema.safeParse({ nickname });
+    // if (!result.success) {
+    // setCreateErrors(result.error.flatten().fieldErrors);
+    //   return;
+    // }
+    // setCreateErrors({});
     setIsCreating(true);
     socketRef.current?.emit(
       "create_room",
@@ -193,12 +193,12 @@ const Home: React.FC = () => {
   };
 
   const handleJoinRoom = () => {
-    const result = joinSchema.safeParse({ nickname, roomId });
-    if (!result.success) {
-      setJoinErrors(result.error.flatten().fieldErrors);
-      return;
-    }
-    setJoinErrors({});
+    // const result = joinSchema.safeParse({ nickname, roomId });
+    // if (!result.success) {
+    //   setJoinErrors(result.error.flatten().fieldErrors);
+    //   return;
+    // }
+    // setJoinErrors({});
     setIsJoining(true);
     socketRef.current?.emit(
       "join_room",
@@ -288,11 +288,11 @@ const Home: React.FC = () => {
             placeholder="Your nickname"
             className="bg-black/20 w-full text-white placeholder-gray-400"
           />
-          {createErrors.nickname && (
+          {/* {createErrors.nickname && (
             <p className="mt-1 text-red-400 text-sm">
               {createErrors.nickname[0]}
             </p>
-          )}
+          )} */}
           <Button
             onClick={handleCreateRoom}
             disabled={!nickname || isCreating}
@@ -308,9 +308,9 @@ const Home: React.FC = () => {
             maxLength={6}
             className="bg-black/20 w-full text-white placeholder-gray-400"
           />
-          {joinErrors.roomId && (
+          {/* {joinErrors.roomId && (
             <p className="mt-1 text-red-400 text-sm">{joinErrors.roomId[0]}</p>
-          )}
+          )} */}
           <Button
             onClick={handleJoinRoom}
             disabled={!nickname || !roomId || isJoining}
@@ -371,11 +371,11 @@ const Home: React.FC = () => {
               placeholder="Question"
               className="bg-black/20 w-full text-white placeholder-gray-400"
             />
-            {masterErrors.question && (
+            {/* {masterErrors.question && (
               <p className="mt-1 text-red-400 text-sm">
                 {masterErrors.question[0]}
               </p>
-            )}
+            )} */}
 
             <Input
               value={answer}
@@ -383,11 +383,11 @@ const Home: React.FC = () => {
               placeholder="Answer"
               className="bg-black/20 w-full text-white placeholder-gray-400"
             />
-            {masterErrors.answer && (
+            {/* {masterErrors.answer && (
               <p className="mt-1 text-red-400 text-sm">
                 {masterErrors.answer[0]}
               </p>
-            )}
+            )} */}
             <Button
               onClick={handleStartGame}
               disabled={!question || !answer || isStarting}
