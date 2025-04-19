@@ -98,9 +98,7 @@ const Home: React.FC = () => {
     {}
   );
   const [joinErrors, setJoinErrors] = useState<HomeState["joinErrors"]>({});
-  const [masterErrors, setMasterErrors] = useState<HomeState["masterErrors"]>(
-    {}
-  );
+  const [masterErrors] = useState<HomeState["masterErrors"]>({});
 
   // Initialize socket.io
   useEffect(() => {
@@ -220,16 +218,10 @@ const Home: React.FC = () => {
   };
 
   const handleStartGame = () => {
-    const result = gameSchema.safeParse({ question, answer });
-    if (!result.success) {
-      setMasterErrors(result.error.flatten().fieldErrors);
-      return;
-    }
-    setMasterErrors({});
+    if (!socketRef.current) return;
 
-    setIsStarting(true);
     // socketRef.current.emit("set_question", { roomId, question, answer });
-    socketRef.current?.emit(
+    socketRef.current.emit(
       "start_game",
       { roomId },
       (res: { error?: string; success?: boolean }) => {
