@@ -4,6 +4,31 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
+import { z } from "zod";
+
+// Add these schemas at the top of the component
+const createSchema = z.object({
+  nickname: z.string().min(1, "Nickname is required"),
+});
+
+const joinSchema = z.object({
+  nickname: z.string().min(1, "Nickname is required"),
+  roomId: z
+    .string()
+    .length(6, "Room ID must be 6 characters")
+    .regex(/^[A-Z0-9]+$/, "Room ID must be uppercase letters and numbers"),
+});
+
+const gameSchema = z.object({
+  question: z.string().min(1, "Question is required"),
+  answer: z.string().min(1, "Answer is required"),
+});
+
+interface HomeState {
+  createErrors: z.inferFlattenedErrors<typeof createSchema>["fieldErrors"];
+  joinErrors: z.inferFlattenedErrors<typeof joinSchema>["fieldErrors"];
+  masterErrors: z.inferFlattenedErrors<typeof gameSchema>["fieldErrors"];
+}
 
 interface Player {
   id: string;
@@ -24,6 +49,7 @@ interface GameWonData {
 }
 interface GameStartedData {
   question: string;
+  answer: string;
 }
 interface GameEndedData {
   answer: string;
@@ -67,6 +93,15 @@ const Home: React.FC = () => {
   const [isStarting, setIsStarting] = useState(false);
   const [isGuessing, setIsGuessing] = useState(false);
 
+  // Validate input
+  const [createErrors, setCreateErrors] = useState<HomeState["createErrors"]>(
+    {}
+  );
+  const [joinErrors, setJoinErrors] = useState<HomeState["joinErrors"]>({});
+  const [masterErrors, setMasterErrors] = useState<HomeState["masterErrors"]>(
+    {}
+  );
+
   // Initialize socket.io
   useEffect(() => {
     import("socket.io-client")
@@ -91,12 +126,16 @@ const Home: React.FC = () => {
         });
 
         // Game started
-        socket.on("game_started", ({ question }: GameStartedData) => {
-          setQuestion(question);
-          setAttemptsLeft(3);
-          setGuess("");
-          setStep("game");
-        });
+        socketRef.current.on(
+          "game_started",
+          ({ question, answer }: GameStartedData) => {
+            setQuestion(question);
+            setAnswer(answer); // Store answer locally if needed
+            setAttemptsLeft(3);
+            setGuess("");
+            setStep("game");
+          }
+        );
 
         // Player won
         socket.on("game_won", (data: GameWonData) => {
@@ -137,49 +176,54 @@ const Home: React.FC = () => {
 
   // Handlers with loaders
   const handleCreateRoom = () => {
-    setIsCreating(true);
-    if (socketRef.current) {
-      socketRef.current.emit(
-        "create_room",
-        { nickname },
-        ({ roomId }: { roomId: string }) => {
-          setIsCreating(false);
-          setRoomId(roomId);
-          setStep("master");
-        }
-      );
+    const result = createSchema.safeParse({ nickname });
+    if (!result.success) {
+      setCreateErrors(result.error.flatten().fieldErrors);
+      return;
     }
+    setCreateErrors({});
+    setIsCreating(true);
+    socketRef.current?.emit(
+      "create_room",
+      { nickname },
+      ({ roomId }: { roomId: string }) => {
+        setIsCreating(false);
+        setRoomId(roomId);
+        setStep("master");
+      }
+    );
   };
 
   const handleJoinRoom = () => {
-    setIsJoining(true);
-    if (socketRef.current) {
-      socketRef.current.emit(
-        "join_room",
-        { roomId, nickname },
-        (res: { error?: string; success?: boolean }) => {
-          setIsJoining(false);
-          if (res.error) {
-            toast("Error Joining Room", {
-              description: res.error,
-              action: {
-                label: "Try again",
-                onClick: () => {
-                  handleJoinRoom();
-                },
-              },
-            });
-            return;
-          } else setStep("player");
-        }
-      );
+    const result = joinSchema.safeParse({ nickname, roomId });
+    if (!result.success) {
+      setJoinErrors(result.error.flatten().fieldErrors);
+      return;
     }
+    setJoinErrors({});
+    setIsJoining(true);
+    socketRef.current?.emit(
+      "join_room",
+      { roomId, nickname },
+      (res: { error?: string; success?: boolean }) => {
+        setIsJoining(false);
+        if (res.error) {
+          toast("Error Joining Room", {
+            description: res.error,
+            action: { label: "Try again", onClick: handleJoinRoom },
+          });
+          return;
+        }
+        setStep("player");
+      }
+    );
   };
 
   const handleStartGame = () => {
-    setIsStarting(true);
+    if (!socketRef.current) return;
 
-    socketRef.current?.emit(
+    // socketRef.current.emit("set_question", { roomId, question, answer });
+    socketRef.current.emit(
       "start_game",
       { roomId },
       (res: { error?: string; success?: boolean }) => {
@@ -196,10 +240,9 @@ const Home: React.FC = () => {
           });
           return;
         }
-
         // Only emit set_question if start_game was successful
-        socketRef.current?.emit("set_question", { roomId, question, answer });
-
+        if (!socketRef.current) return;
+        socketRef.current.emit("set_question", { roomId, question, answer });
         setIsStarting(false);
       }
     );
@@ -243,33 +286,37 @@ const Home: React.FC = () => {
           </h1>
           <Input
             value={nickname}
-            onChange={(e: ChangeEvent<HTMLInputElement>) =>
-              setNickname(e.target.value)
-            }
+            onChange={(e) => setNickname(e.target.value)}
             placeholder="Your nickname"
             className="bg-black/20 w-full text-white placeholder-gray-400"
           />
+          {createErrors.nickname && (
+            <p className="mt-1 text-red-400 text-sm">
+              {createErrors.nickname[0]}
+            </p>
+          )}
           <Button
             onClick={handleCreateRoom}
             disabled={!nickname || isCreating}
-            className="w-full"
+            className="bg-blue-500/90 hover:bg-blue-500 px-4 py-2 rounded-md w-full font-semibold text-white transition-colors duration-300"
           >
             {isCreating ? <Spinner /> : "Create Room"}
           </Button>
           <div className="border-white/20 border-t"></div>
           <Input
             value={roomId}
-            onChange={(e: ChangeEvent<HTMLInputElement>) =>
-              setRoomId(e.target.value.toUpperCase())
-            }
+            onChange={(e) => setRoomId(e.target.value.toUpperCase())}
             placeholder="Room ID"
             maxLength={6}
             className="bg-black/20 w-full text-white placeholder-gray-400"
           />
+          {joinErrors.roomId && (
+            <p className="mt-1 text-red-400 text-sm">{joinErrors.roomId[0]}</p>
+          )}
           <Button
             onClick={handleJoinRoom}
             disabled={!nickname || !roomId || isJoining}
-            className="w-full"
+            className="bg-green-500/90 hover:bg-green-500 px-4 py-2 rounded-md w-full font-semibold text-white transition-colors duration-300"
           >
             {isJoining ? <Spinner /> : "Join Room"}
           </Button>
@@ -322,24 +369,31 @@ const Home: React.FC = () => {
             </h3>
             <Input
               value={question}
-              onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                setQuestion(e.target.value)
-              }
+              onChange={(e) => setQuestion(e.target.value)}
               placeholder="Question"
               className="bg-black/20 w-full text-white placeholder-gray-400"
             />
+            {masterErrors.question && (
+              <p className="mt-1 text-red-400 text-sm">
+                {masterErrors.question[0]}
+              </p>
+            )}
+
             <Input
               value={answer}
-              onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                setAnswer(e.target.value)
-              }
+              onChange={(e) => setAnswer(e.target.value)}
               placeholder="Answer"
               className="bg-black/20 w-full text-white placeholder-gray-400"
             />
+            {masterErrors.answer && (
+              <p className="mt-1 text-red-400 text-sm">
+                {masterErrors.answer[0]}
+              </p>
+            )}
             <Button
               onClick={handleStartGame}
               disabled={!question || !answer || isStarting}
-              className="w-full"
+              className="bg-purple-500/90 hover:bg-purple-500 px-4 py-2 rounded-md w-full font-semibold text-white transition-colors duration-300"
             >
               {isStarting ? <Spinner /> : "Start Game"}
             </Button>
