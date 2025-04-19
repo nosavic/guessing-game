@@ -4,11 +4,10 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import type { Socket } from "socket.io-client";
 
 interface Player {
   id: string;
-  nickname: string;
+  nicknsame: string;
   score: number;
   isMaster: boolean;
 }
