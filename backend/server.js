@@ -88,7 +88,7 @@ io.on("connection", (socket) => {
       io.to(roomId).emit("game_ended", { answer: room.answer });
       io.to(roomId).emit("chat_update", room.chat);
       rotateMaster(roomId);
-    }, 60000);
+    }, 600000);
 
     cb({ success: true });
   });
