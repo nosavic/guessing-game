@@ -219,29 +219,20 @@ const Home: React.FC = () => {
 
   const handleStartGame = () => {
     if (!socketRef.current) return;
-
-    // socketRef.current.emit("set_question", { roomId, question, answer });
+    socketRef.current.emit("set_question", { roomId, question, answer });
     socketRef.current.emit(
       "start_game",
       { roomId },
       (res: { error?: string; success?: boolean }) => {
-        if (res.error) {
-          setIsStarting(false);
-          toast("Error Starting Game", {
-            description: res.error,
-            action: {
-              label: "Try again",
-              onClick: () => {
-                handleStartGame();
-              },
+        toast("Error Starting Game", {
+          description: res.error,
+          action: {
+            label: "Try again",
+            onClick: () => {
+              handleStartGame();
             },
-          });
-          return;
-        }
-        // Only emit set_question if start_game was successful
-        if (!socketRef.current) return;
-        socketRef.current.emit("set_question", { roomId, question, answer });
-        setIsStarting(false);
+          },
+        });
       }
     );
   };
