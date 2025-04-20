@@ -234,15 +234,17 @@ const Home: React.FC = () => {
       "start_game",
       { roomId },
       (res: { error?: string; success?: boolean }) => {
-        toast("Error Starting Game", {
-          description: res.error,
-          action: {
-            label: "Try again",
-            onClick: () => {
-              handleStartGame();
+        if (res.error) {
+          toast("Error Starting Game", {
+            description: res.error,
+            action: {
+              label: "Try again",
+              onClick: () => {
+                handleStartGame();
+              },
             },
-          },
-        });
+          });
+        }
       }
     );
   };
